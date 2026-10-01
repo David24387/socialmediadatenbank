@@ -1,0 +1,15 @@
+{
+  "rootFolderId": "1JYjGP0o9h531VFepYOD5i_hwRMn6evAT",
+  "folders": {
+    "facebook": "Facebook",
+    "instagram": "Instagram",
+    "linkedin": "Linkedin",
+    "reels": "Reels"
+  },
+  "rules": {
+    "facebook": {"platforms": ["facebook"], "defaultFormat": "Bild"},
+    "instagram": {"platforms": ["instagram"], "defaultFormat": "Bild"},
+    "linkedin": {"platforms": ["linkedin"], "defaultFormat": "Bild"},
+    "reels": {"platforms": ["instagram", "facebook"], "defaultFormat": "Reel"}
+  }
+}
