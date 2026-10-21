@@ -9,6 +9,18 @@ const SNAPSHOT_KEY = 'SOCIAL_DATABASE_SNAPSHOT_V1';
 
 // Visitors only read the prepared list; no folder scan or ZIP processing.
 function doGet(e) {
+  const params = e && e.parameter || {};
+  const compactId = PropertiesService.getScriptProperties().getProperty(SNAPSHOT_KEY + '_COMPACT');
+  if ((params.view === 'compact' || params.preview) && compactId) {
+    const compact = readIndexFile_(compactId);
+    if (params.preview) {
+      const item = JSON.parse(compact).content.find(function(x) { return String(x.id) === String(params.preview); });
+      if (!item || !item.previewDataId) return jsonOutput_(JSON.stringify({error: 'PREVIEW_NOT_FOUND'}));
+      return jsonOutput_(DriveApp.getFileById(item.previewDataId).getBlob().getDataAsString('UTF-8'));
+    }
+    return jsonOutput_(compact);
+  }
+  if (params.preview) return jsonOutput_(JSON.stringify({error: 'PREVIEW_NOT_READY'}));
   const saved = readSnapshot_();
   if (!saved) return jsonOutput_(JSON.stringify({error: 'NOT_INITIALIZED', message: 'Bitte setupDatabase einmal im Script-Editor ausführen.'}));
   return jsonOutput_(saved);
@@ -21,6 +33,20 @@ function jsonOutput_(text) {
 function readSnapshot_() {
   const id = PropertiesService.getScriptProperties().getProperty(SNAPSHOT_KEY);
   return id ? DriveApp.getFileById(id).getBlob().getDataAsString('UTF-8') : null;
+}
+
+// Cache is optional; eviction or size limits always fall back to the index file.
+function readIndexFile_(id) {
+  const key = 'compact:' + id;
+  try {
+    const hit = CacheService.getScriptCache().get(key);
+    if (hit) return hit;
+  } catch (error) {}
+  const text = DriveApp.getFileById(id).getBlob().getDataAsString('UTF-8');
+  try {
+    if (Utilities.newBlob(text).getBytes().length < 90000) CacheService.getScriptCache().put(key, text, 300);
+  } catch (error) {}
+  return text;
 }
 
 // Run once manually and authorize. Re-running does not duplicate triggers.
@@ -39,12 +65,38 @@ function refreshDatabase() {
     const saved = readSnapshot_();
     const previous = saved ? JSON.parse(saved) : {content: []};
     const result = buildDatabase_(previous);
+    // Keep the legacy response compatible; the website requests the small index.
+    const oldById = new Map(previous.content.map(function(x) { return [x.id, x]; }));
+    result.content.forEach(function(item) {
+      if (item.format !== 'Carousel' || !/^data:image\//.test(item.preview || '')) return;
+      const old = oldById.get(item.id);
+      if (old && old.previewDataId && old.modified === item.modified && old.preview === item.preview) {
+        item.previewDataId = old.previewDataId;
+      } else {
+        item.previewDataId = DriveApp.createFile(Utilities.newBlob(
+          JSON.stringify({preview: item.preview}), 'application/json', 'Social-Media-Vorschau-' + item.id + '.json'
+        )).getId();
+      }
+    });
+    const compact = {updatedAt: result.updatedAt, content: result.content.map(function(item) {
+      const entry = Object.assign({}, item);
+      if (entry.previewDataId) { entry.preview = ''; entry.previewDeferred = true; }
+      return entry;
+    })};
+    const compactFile = DriveApp.createFile(Utilities.newBlob(JSON.stringify(compact), 'application/json', 'Social-Media-Datenbank-Kompakt.json'));
     const text = JSON.stringify(result);
     // Create a complete replacement before publishing its ID.
     const fresh = DriveApp.createFile(Utilities.newBlob(text, 'application/json', 'Social-Media-Datenbank-Index.json'));
     const props = PropertiesService.getScriptProperties();
     const oldId = props.getProperty(SNAPSHOT_KEY);
     props.setProperty(SNAPSHOT_KEY, fresh.getId());
+    const oldCompact = props.getProperty(SNAPSHOT_KEY + '_COMPACT');
+    props.setProperty(SNAPSHOT_KEY + '_COMPACT', compactFile.getId());
+    const retiredCompact = props.getProperty(SNAPSHOT_KEY + '_COMPACT_PREVIOUS');
+    if (oldCompact) props.setProperty(SNAPSHOT_KEY + '_COMPACT_PREVIOUS', oldCompact);
+    if (retiredCompact) {
+      try { DriveApp.getFileById(retiredCompact).setTrashed(true); } catch (error) { console.warn(error); }
+    }
     // Retain the preceding generation: an in-flight request may still read it.
     const retiredId = props.getProperty(SNAPSHOT_KEY + '_PREVIOUS');
     if (oldId) props.setProperty(SNAPSHOT_KEY + '_PREVIOUS', oldId);
