@@ -18,3 +18,7 @@ Tests mit simulierten Apps-Script-Diensten und DOM: kompakter Index ohne Bilddat
 Der ungenutzte ?file-Endpunkt des Alt-Scripts wird nicht übernommen; die vorhandene Website verwendet direkte Drive-Downloads und Drive-Video-Embeds.
 
 Validierung lokal mit Apps-Script-Mocks: zehn Aufrufe ohne Ordnerscan/ZIP-Entpacken, unverändertes ZIP wiederverwendet, Trigger nicht doppelt angelegt, Löschung übernommen, fehlgeschlagener Refresh überschreibt den Index nicht. Kein Live-Test im Google-Konto und keine gemessene Live-Ladezeit.
+
+## Kampagnen AT und DE
+
+Im bestehenden Drive-Hauptordner werden `AT Kampagne` und `DE Kampagne` erkannt (auch mit Doppelpunkt, Bindestrich oder Unterstrich). Beide Bereiche akzeptieren Bilder, Videos und Carousel-ZIPs gemeinsam, einschließlich Unterordnern. Es wird kein Kanal oder Seitenverhältnis aus dem Ordner abgeleitet. Die Website zeigt eigene Bereiche für AT und DE; Formatfilter bleiben verfügbar. Für die Erkennung den aktualisierten Code.gs in das bestehende Apps-Script-Projekt übernehmen, setupDatabase ausführen und dieselbe Web-App als neue Version bereitstellen.
