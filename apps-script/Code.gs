@@ -131,6 +131,13 @@ function buildDatabase_(previous) {
     const folderKey = folderName.toLowerCase();
 
 
+    // Campaign folders accept mixed channels, media formats and subfolders.
+    const campaign = campaignKey_(folderName);
+    if (campaign) {
+      readCampaignFolder_(folder, campaign, result, previousById);
+      continue;
+    }
+
     // -----------------------------------------------------
     // CAROUSELS
     // -----------------------------------------------------
@@ -187,6 +194,25 @@ function buildDatabase_(previous) {
   return result;
 }
 
+
+function campaignKey_(name) {
+  const key = String(name).toLowerCase().replace(/[^a-z]/g, '');
+  if (/^(atkampagnen?|kampagnen?at)$/.test(key)) return 'at-kampagne';
+  if (/^(dekampagnen?|kampagnen?de)$/.test(key)) return 'de-kampagne';
+  return '';
+}
+
+function readCampaignFolder_(folder, campaign, result, previousById) {
+  const mixed = {content: []};
+  readPlatformFolder(folder, campaign, mixed);
+  readCarouselFolder(folder, mixed, previousById);
+  mixed.content.forEach(function(item) {
+    // Copy cached ZIP entries so moving between folders cannot retain an old category.
+    result.content.push(Object.assign({}, item, {platforms: [], campaign: campaign}));
+  });
+  const children = folder.getFolders();
+  while (children.hasNext()) readCampaignFolder_(children.next(), campaign, result, previousById);
+}
 
 /* =========================================================
    NORMALE POSTS
