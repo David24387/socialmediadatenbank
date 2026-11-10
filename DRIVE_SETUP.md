@@ -1,6 +1,6 @@
 # Google Drive Integration
 
-Root folder ID: `1JYjGP0o9h531VFepYOD5i_hwRMn6evAT`
+Root folder ID: `1nyyu-lK8nOdx7ap_E1yNtKGwcbd1QOMN`
 
 Expected folders:
 - Facebook
